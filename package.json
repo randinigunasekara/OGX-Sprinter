@@ -1,0 +1,11 @@
+{
+  "name": "ogx-sprinter-firebase-setup",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed:scoring": "node scripts/seed-scoring-rules.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}

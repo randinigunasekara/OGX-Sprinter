@@ -156,11 +156,6 @@
                     <div><span>Points</span><strong id="profilePoints">0</strong></div>
                     <div><span>Total posts</span><strong id="profilePostTotal">0</strong></div>
                 </div>
-                <div class="profile-adjust-posts">
-                    <label for="postCount">Adjust total posts</label>
-                    <input id="postCount" type="number" min="0">
-                    <button class="btn primary" type="button" onclick="updatePostCount()">Save</button>
-                </div>
                 <div class="profile-actions">
                     <button class="btn" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
                     <a href="submit-post.html" class="btn primary"><i class="fa-solid fa-paper-plane"></i> Go to Submit Post</a>
@@ -175,6 +170,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/script.js"></script>
+    <script type="module" src="js/firebase-app.js"></script>
 </body>
 </html>
