@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isValidAvatar(avatar) {
+      return avatar is map
+        && avatar.keys().hasOnly(['skinTone', 'hairStyle', 'hairColor', 'outfitColor'])
+        && avatar.keys().hasAll(['skinTone', 'hairStyle', 'hairColor', 'outfitColor'])
+        && avatar.skinTone in ['#f3c6a5', '#dca77c', '#9b6548', '#603b2b']
+        && avatar.hairStyle in ['short', 'long', 'curly']
+        && avatar.hairColor in ['#211915', '#754c24', '#c58b38', '#b84d35']
+        && avatar.outfitColor in ['#4874d2', '#f0761f', '#37a58b', '#9a63c7'];
+    }
+
+    function postMatchesScoringRule() {
+      let post = request.resource.data;
+      let rule = get(/databases/$(database)/documents/scoringRules/$(post.scoringRuleId)).data;
+      return rule.active == true
+        && rule.department == post.department
+        && rule.category == post.category
+        && rule.kpi == post.kpi
+        && rule.points == post.pointsAwarded
+        && (
+          (rule.signupMetric == null
+            && post.signupMetric == null
+            && post.signupCount == 0
+            && rule.minSignupCount == null
+            && rule.maxSignupCount == null)
+          ||
+          (rule.signupMetric != null
+            && post.signupMetric == rule.signupMetric
+            && post.signupCount >= rule.minSignupCount
+            && (rule.maxSignupCount == null || post.signupCount <= rule.maxSignupCount))
+        );
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'name', 'department', 'photoUrl', 'avatarConfig', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'name', 'department', 'photoUrl', 'avatarConfig', 'createdAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.department in ['oGT', 'oGV']
+        && request.resource.data.photoUrl == null
+        && isValidAvatar(request.resource.data.avatarConfig)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['avatarConfig'])
+        && isValidAvatar(request.resource.data.avatarConfig);
+      allow delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.userId)
+        && request.resource.data.keys().hasOnly([
+          'userId', 'department', 'category', 'kpi', 'signupCount',
+          'signupMetric', 'title', 'platform', 'datePosted',
+          'scoringRuleId', 'pointsAwarded', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'userId', 'department', 'category', 'kpi', 'signupCount',
+          'signupMetric', 'title', 'platform', 'datePosted',
+          'scoringRuleId', 'pointsAwarded', 'createdAt'
+        ])
+        && request.resource.data.department ==
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department
+        && request.resource.data.signupCount is int
+        && request.resource.data.signupCount >= 0
+        && request.resource.data.createdAt == request.time
+        && postMatchesScoringRule();
+      allow update, delete: if isAdmin();
+    }
+
+    match /scoringRules/{ruleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}
