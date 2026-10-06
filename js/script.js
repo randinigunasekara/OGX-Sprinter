@@ -23,7 +23,49 @@ function loadMembers(){
 }
 function saveMembers(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(members)); }
 
+function ensureAuthModal(){
+  if(document.getElementById('authModal')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="authModal" class="modal" role="dialog" aria-modal="true" aria-label="Account access">
+      <div class="modal-content card">
+        <button class="modal-close" type="button" aria-label="Close" onclick="closeLoginModal()">&times;</button>
+        <div class="auth-tabs" id="authTabs" role="tablist" aria-label="Account access">
+          <button id="tabSignIn" class="tab active" type="button" role="tab" aria-selected="true" onclick="switchAuthTab('signin')">Sign In</button>
+          <button id="tabSignUp" class="tab" type="button" role="tab" aria-selected="false" onclick="switchAuthTab('signup')">Sign Up</button>
+        </div>
+        <form id="loginForm" class="auth-form">
+          <div class="field-group"><label for="loginEmail"><i class="fa-regular fa-envelope"></i> Email</label><input id="loginEmail" type="email" required placeholder="name@aiesec.net"></div>
+          <div class="field-group"><label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label><input id="loginPassword" type="password" required placeholder="••••••••"></div>
+          <div class="actions"><button type="submit" class="btn primary"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button></div>
+          <p class="auth-switch-copy">Don't have an account? <button type="button" onclick="switchAuthTab('signup')">Sign up</button></p>
+        </form>
+        <form id="signupForm" class="auth-form" style="display:none;">
+          <div class="field-group"><label for="signUpName"><i class="fa-regular fa-user"></i> Full Name</label><input id="signUpName" type="text" required placeholder="John Doe"></div>
+          <div class="field-group"><label for="signUpEmail"><i class="fa-regular fa-envelope"></i> Email</label><input id="signUpEmail" type="email" required placeholder="name@aiesec.net"></div>
+          <div class="field-group"><label for="signUpPassword"><i class="fa-solid fa-lock"></i> Password</label><input id="signUpPassword" type="password" required placeholder="••••••••"></div>
+          <div class="field-group"><label for="signUpDept"><i class="fa-solid fa-sitemap"></i> Department</label><select id="signUpDept" required><option value="">Select department</option><option value="oGT">oGT</option><option value="oGV">oGV</option></select></div>
+          <div class="actions"><button type="submit" class="btn primary"><i class="fa-solid fa-user-plus"></i> Create Account</button></div>
+          <p class="auth-switch-copy">Already have an account? <button type="button" onclick="switchAuthTab('signin')">Sign in</button></p>
+        </form>
+        <div id="profileDashboard" class="profile-dashboard" style="display:none;">
+          <div class="profile-header">
+            <img id="profileImage" src="assets/logo.png" alt="Profile photo" class="avatar">
+            <div><div id="profileName" class="profile-name">Member</div><div id="profileDeptLabel"></div></div>
+          </div>
+          <div class="profile-summary">
+            <div><span>Points</span><strong id="profilePoints">0</strong></div>
+            <div><span>Total posts</span><strong id="profilePostTotal">0</strong></div>
+          </div>
+          <div class="profile-actions"><button class="btn" type="button" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button></div>
+        </div>
+      </div>
+    </div>`);
+  document.getElementById('loginForm').addEventListener('submit', event => { event.preventDefault(); handleLogin(); });
+  document.getElementById('signupForm').addEventListener('submit', event => { event.preventDefault(); handleSignUp(); });
+}
+
 function init(){
+  ensureAuthModal();
   loadMembers();
   const storedId = localStorage.getItem('ogx_current_member');
   const storedMember = members.find(member => String(member.id) === storedId);
@@ -34,8 +76,13 @@ function init(){
 window.addEventListener('DOMContentLoaded', init);
 
 /* Modal + Auth */
-function openLoginModal(){ const modal = document.getElementById('authModal'); if(modal) modal.style.display = 'flex'; }
+function openLoginModal(){ ensureAuthModal(); const modal = document.getElementById('authModal'); if(modal) modal.style.display = 'flex'; }
 function closeLoginModal(){ const modal = document.getElementById('authModal'); if(modal) modal.style.display = 'none'; }
+
+function updateLoginButton(label){
+  const loginButton = document.getElementById('loginBtn');
+  if(loginButton) loginButton.innerHTML = `<i class="fa-regular fa-user"></i> ${label}`;
+}
 
 function switchAuthTab(tab){
   const loginForm = document.getElementById('loginForm');
@@ -89,8 +136,7 @@ function handleLogout(){
   if(tabs) tabs.style.display='';
   if(loginForm) loginForm.style.display='block';
   if(signupForm) signupForm.style.display='none';
-  const loginButton = document.getElementById('loginBtn');
-  if(loginButton) loginButton.textContent='Login / Sign Up';
+  updateLoginButton('Login / Sign Up');
 }
 
 function uploadProfilePhoto(e){
@@ -111,7 +157,7 @@ function showProfileView(memberId){
   document.getElementById('profilePoints') && (document.getElementById('profilePoints').textContent = m.score || 0);
   document.getElementById('profilePostTotal') && (document.getElementById('profilePostTotal').textContent = m.posts || 0);
   document.getElementById('profileImage') && (document.getElementById('profileImage').src = m.avatar || 'assets/logo.png');
-  document.getElementById('loginBtn') && (document.getElementById('loginBtn').textContent = 'My Profile');
+  updateLoginButton('My Profile');
   renderProfilePosts(m);
 }
 

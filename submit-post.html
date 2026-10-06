@@ -27,10 +27,10 @@
       <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
       <a href="ogt.html" class="nav-link"><i class="fa-solid fa-briefcase"></i> oGT Performance</a>
       <a href="ogv.html" class="nav-link"><i class="fa-solid fa-earth-americas"></i> oGV Performance</a>
-      <a href="submit-post.html" class="nav-link active"><i class="fa-solid fa-paper-plane"></i> Submit Post</a>
+      <a href="submit-post.html" class="nav-link active" hidden><i class="fa-solid fa-paper-plane"></i> Submit Post Details</a>
     </nav>
     <div class="nav-actions">
-      <a href="login.html" class="btn primary">Login / Sign Up</a>
+      <button id="loginBtn" class="btn primary" type="button" onclick="openLoginModal()"><i class="fa-regular fa-user"></i> Login / Sign Up</button>
     </div>
   </header>
 
@@ -38,8 +38,10 @@
   <main class="form-wrapper">
     <div class="header-box">
       <h2>Submit Post Proof</h2>
-      <p>Submit your promotional link to earn <span class="badge-points">+5 Points</span></p>
+      <p>Submit campaign details to receive points based on the scoring rules.</p>
     </div>
+
+    <p id="authAccessMessage" class="auth-gate-message" hidden>Please sign in to your account to access this form.</p>
 
     <form id="submitPostForm" class="submission-card" onsubmit="event.preventDefault(); handleSubmitPost();">
       
@@ -68,14 +70,32 @@
         </select>
       </div>
 
+      <div class="form-group">
+        <label for="postCategory">Campaign category</label>
+        <select id="postCategory" required disabled><option value="">Sign in to load categories...</option></select>
+      </div>
+
+      <div class="form-group">
+        <label for="postKpi">KPI</label>
+        <select id="postKpi" required disabled><option value="">Select campaign category first...</option></select>
+      </div>
+
+      <div class="form-group" id="signupCountGroup" hidden>
+        <label id="signupMetricLabel" for="signupCount">SU count</label>
+        <input type="number" id="signupCount" min="0" step="1" value="0">
+      </div>
+
+      <p id="pointsPreview" aria-live="polite">Select a KPI to see its score.</p>
+      <p id="submissionStatus" role="status" aria-live="polite"></p>
+
       <!-- Action Button -->
       <button class="submit-btn" type="submit">
-        <i class="fa-solid fa-bolt"></i> Submit &amp; Claim +5 Points
+        <i class="fa-solid fa-bolt"></i> Submit post
       </button>
 
     </form>
   </main>
 
-  <script src="js/script.js"></script>
+  <script type="module" src="js/firebase-app.js"></script>
 </body>
 </html>
