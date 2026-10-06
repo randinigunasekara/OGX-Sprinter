@@ -37,7 +37,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
           'name', 'department', 'photoUrl', 'createdAt'
@@ -56,7 +56,7 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create: if isOwner(request.resource.data.userId)
         && request.resource.data.keys().hasOnly([
           'userId', 'department', 'category', 'kpi', 'signupCount',

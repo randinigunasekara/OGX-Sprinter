@@ -58,6 +58,17 @@ function ensureAuthModal() {
     </div>`);
 }
 
+function applyAuthGate() {
+  const form = document.getElementById('submitPostForm');
+  const authMessage = document.getElementById('authAccessMessage');
+  if (!form || !authMessage) return;
+
+  const isAuthenticated = Boolean(currentUser);
+  form.hidden = !isAuthenticated;
+  authMessage.hidden = isAuthenticated;
+  authMessage.textContent = 'Please sign in to your account to access this form.';
+}
+
 function init() {
   ensureAuthModal();
   document.getElementById('postCategory')?.addEventListener('change', updateKpiOptions);
@@ -70,6 +81,7 @@ function init() {
     const member = members.find(item => item.id === user?.uid);
     if (user && member) showProfileView(user.uid);
     else resetAuthView();
+    applyAuthGate();
     updateScoringForm();
     renderAll();
   });
@@ -128,6 +140,7 @@ function resetAuthView() {
   if (loginForm) loginForm.style.display = 'block';
   if (signupForm) signupForm.style.display = 'none';
   updateLoginButton('Login / Sign Up');
+  applyAuthGate();
 }
 
 function openLoginModal() {
