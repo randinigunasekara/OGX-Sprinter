@@ -33,7 +33,7 @@
             <a href="index.html" class="nav-link active"><i class="fa-solid fa-house"></i> Home</a>
             <a href="ogt.html" class="nav-link"><i class="fa-solid fa-briefcase"></i> oGT Performance</a>
             <a href="ogv.html" class="nav-link"><i class="fa-solid fa-earth-americas"></i> oGV Performance</a>
-            <a href="submit-post.html" class="nav-link"><i class="fa-solid fa-paper-plane"></i> Submit Post Details</a>
+            <a href="submit-post.html" class="nav-link" hidden><i class="fa-solid fa-paper-plane"></i> Submit Post Details</a>
         </nav>
         <div class="nav-actions">
             <button id="loginBtn" class="btn primary" onclick="openLoginModal()"><i class="fa-regular fa-user"></i> Login / Sign Up</button>
@@ -128,10 +128,6 @@
                         <option value="oGV">oGV</option>
                     </select>
                 </div>
-                <div class="field-group signup-photo-field">
-                    <label for="signUpPhoto"><i class="fa-solid fa-camera"></i> Profile photo <span class="muted">(optional)</span></label>
-                    <input id="signUpPhoto" type="file" accept="image/*">
-                </div>
                 <div class="actions">
                     <button type="submit" class="btn primary"><i class="fa-solid fa-user-plus"></i> Create Account</button>
                 </div>
@@ -140,13 +136,7 @@
 
             <div id="profileDashboard" class="profile-dashboard" style="display:none;">
                 <div class="profile-header">
-                    <div class="profile-avatar-wrap">
-                        <img id="profileImage" src="assets/logo.png" alt="Profile photo" class="avatar">
-                        <label class="profile-upload-btn" for="profilePhotoInput" title="Change profile photo">
-                            <i class="fa-solid fa-camera"></i><span>Change photo</span>
-                            <input id="profilePhotoInput" type="file" accept="image/*" onchange="uploadProfilePhoto(event)">
-                        </label>
-                    </div>
+                    <img id="profileImage" src="assets/logo.png" alt="Generated profile avatar" class="avatar">
                     <div>
                         <div id="profileName" class="profile-name">Member</div>
                         <div id="profileDeptLabel"></div>

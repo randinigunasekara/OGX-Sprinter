@@ -23,7 +23,7 @@
       <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i> Home</a>
       <a href="ogt.html" class="nav-link"><i class="fa-solid fa-briefcase"></i> oGT Performance</a>
       <a href="ogv.html" class="nav-link"><i class="fa-solid fa-earth-americas"></i> oGV Performance</a>
-      <a href="submit-post.html" class="nav-link"><i class="fa-solid fa-paper-plane"></i> Submit Post Details</a>
+      <a href="submit-post.html" class="nav-link" hidden><i class="fa-solid fa-paper-plane"></i> Submit Post Details</a>
     </nav>
     <div class="nav-actions">
       <button id="loginBtn" class="btn primary" type="button" onclick="openLoginModal()"><i class="fa-regular fa-user"></i> Login / Sign Up</button>
@@ -77,14 +77,13 @@
 
       <div id="profileDashboard" class="profile-dashboard" style="display:none;margin-top:18px;">
         <div class="profile-header">
-          <img id="profileImage" src="assets/logo.png" alt="avatar" class="avatar">
+          <img id="profileImage" src="assets/logo.png" alt="Generated profile avatar" class="avatar">
           <div>
             <div id="profileName" class="profile-name">Member</div>
             <div id="profileDeptLabel"></div>
           </div>
         </div>
         <div class="profile-actions" style="margin-top:12px;">
-          <label class="btn secondary"><i class="fa-solid fa-upload"></i> Upload Photo <input id="profilePhotoInput" type="file" accept="image/*" style="display:none;" onchange="uploadProfilePhoto(event)"></label>
           <button class="btn" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
         </div>
       </div>
