@@ -1,8 +1,10 @@
 import { firebaseAuth, firestore } from './firebase-config.js';
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
@@ -10,6 +12,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
@@ -63,6 +66,7 @@ function ensureAuthModal() {
           <button id="tabSignIn" class="tab active" type="button" role="tab" aria-selected="true" onclick="switchAuthTab('signin')">Sign In</button>
           <button id="tabSignUp" class="tab" type="button" role="tab" aria-selected="false" onclick="switchAuthTab('signup')">Sign Up</button>
         </div>
+        <button id="googleAuthButton" class="btn google-auth" type="button" onclick="handleGoogleSignIn()"><i class="fa-brands fa-google"></i> Continue with Google</button>
         <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); handleLogin();">
           <div class="field-group"><label for="loginEmail">Email</label><input id="loginEmail" type="email" required></div>
           <div class="field-group"><label for="loginPassword">Password</label><input id="loginPassword" type="password" required></div>
@@ -75,6 +79,11 @@ function ensureAuthModal() {
           <div class="field-group"><label for="signUpDept">Department</label><select id="signUpDept" required><option value="">Select department</option><option value="oGT">oGT</option><option value="oGV">oGV</option></select></div>
           <div class="actions"><button type="submit" class="btn primary">Create Account</button></div>
         </form>
+        <form id="googleProfileForm" class="auth-form" style="display:none;" onsubmit="event.preventDefault(); handleGoogleProfileSetup();">
+          <p class="google-profile-copy">Choose your department to finish setting up your account.</p>
+          <div class="field-group"><label for="googleProfileDept">Department</label><select id="googleProfileDept" required><option value="">Select department</option><option value="oGT">oGT</option><option value="oGV">oGV</option></select></div>
+          <div class="actions"><button type="submit" class="btn primary">Complete profile</button></div>
+        </form>
         <div id="profileDashboard" class="profile-dashboard" style="display:none;">
           <div class="profile-header"><img id="profileImage" src="assets/logo.png" alt="Generated profile avatar" class="avatar"><div><div id="profileName" class="profile-name">Member</div><div id="profileDeptLabel"></div></div></div>
           <div class="profile-summary"><div><span>Points</span><strong id="profilePoints">0</strong></div><div><span>Total posts</span><strong id="profilePostTotal">0</strong></div></div>
@@ -85,7 +94,7 @@ function ensureAuthModal() {
 }
 
 function applyAuthGate() {
-  const isAuthenticated = Boolean(currentUser);
+  const isAuthenticated = Boolean(currentUser && members.some(member => member.id === currentUser.uid));
   document.querySelectorAll('.nav a.nav-link[href$="submit-post.html"]').forEach(link => {
     link.hidden = !isAuthenticated;
   });
@@ -112,6 +121,7 @@ function init() {
     await Promise.all([loadMembers(), loadScoringRules()]);
     const member = members.find(item => item.id === user?.uid);
     if (user && member) showProfileView(user.uid);
+    else if (user?.providerData.some(provider => provider.providerId === 'google.com')) showGoogleProfileSetup();
     else resetAuthView();
     applyAuthGate();
     updateScoringForm();
@@ -167,8 +177,12 @@ function resetAuthView() {
   const tabs = document.getElementById('authTabs');
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
+  const googleProfileForm = document.getElementById('googleProfileForm');
+  const googleAuthButton = document.getElementById('googleAuthButton');
   if (dashboard) dashboard.style.display = 'none';
   if (tabs) tabs.style.display = '';
+  if (googleAuthButton) googleAuthButton.hidden = false;
+  if (googleProfileForm) googleProfileForm.style.display = 'none';
   if (loginForm) loginForm.style.display = 'block';
   if (signupForm) signupForm.style.display = 'none';
   updateLoginButton('Login / Sign Up');
@@ -250,6 +264,62 @@ async function handleLogin() {
   }
 }
 
+async function handleGoogleSignIn() {
+  try {
+    const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
+    const profile = await getDoc(doc(firestore, 'users', credential.user.uid));
+    if (profile.exists()) closeLoginModal();
+    else showGoogleProfileSetup();
+  } catch (error) {
+    console.error('Google sign-in failed:', error);
+    alert(error.message || 'Could not sign in with Google. Please try again.');
+  }
+}
+
+function showGoogleProfileSetup() {
+  const dashboard = document.getElementById('profileDashboard');
+  const tabs = document.getElementById('authTabs');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+  const googleAuthButton = document.getElementById('googleAuthButton');
+  const profileForm = document.getElementById('googleProfileForm');
+  if (dashboard) dashboard.style.display = 'none';
+  if (tabs) tabs.style.display = 'none';
+  if (loginForm) loginForm.style.display = 'none';
+  if (signupForm) signupForm.style.display = 'none';
+  if (googleAuthButton) googleAuthButton.hidden = true;
+  if (profileForm) profileForm.style.display = 'block';
+  openLoginModal();
+}
+
+async function handleGoogleProfileSetup() {
+  const department = document.getElementById('googleProfileDept')?.value;
+  if (!currentUser || !department) return alert('Select your department to continue.');
+
+  try {
+    const profileRef = doc(firestore, 'users', currentUser.uid);
+    const profile = await getDoc(profileRef);
+    if (!profile.exists()) {
+      const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Member';
+      await setDoc(profileRef, {
+        name,
+        department,
+        photoUrl: null,
+        avatarConfig: { ...AVATAR_DEFAULTS },
+        createdAt: serverTimestamp()
+      });
+    }
+    await loadMembers();
+    showProfileView(currentUser.uid);
+    updateScoringForm();
+    renderAll();
+    closeLoginModal();
+  } catch (error) {
+    console.error('Google profile setup failed:', error);
+    alert(error.message || 'Could not finish setting up your account. Please try again.');
+  }
+}
+
 async function handleLogout() {
   try {
     await signOut(firebaseAuth);
@@ -266,10 +336,14 @@ function showProfileView(userId) {
   const authTabs = document.getElementById('authTabs');
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
+  const googleProfileForm = document.getElementById('googleProfileForm');
+  const googleAuthButton = document.getElementById('googleAuthButton');
   const dashboard = document.getElementById('profileDashboard');
   if (authTabs) authTabs.style.display = 'none';
   if (loginForm) loginForm.style.display = 'none';
   if (signupForm) signupForm.style.display = 'none';
+  if (googleProfileForm) googleProfileForm.style.display = 'none';
+  if (googleAuthButton) googleAuthButton.hidden = true;
   if (dashboard) dashboard.style.display = 'block';
   const avatarBuilder = ensureAvatarBuilder(dashboard);
   if (avatarBuilder) {
@@ -692,6 +766,8 @@ window.closeLoginModal = closeLoginModal;
 window.switchAuthTab = switchAuthTab;
 window.handleSignUp = handleSignUp;
 window.handleLogin = handleLogin;
+window.handleGoogleSignIn = handleGoogleSignIn;
+window.handleGoogleProfileSetup = handleGoogleProfileSetup;
 window.handleLogout = handleLogout;
 window.showProfileView = showProfileView;
 window.handleSubmitPost = handleSubmitPost;
