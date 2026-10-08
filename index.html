@@ -91,6 +91,7 @@
                 <button id="tabSignIn" class="tab active" type="button" role="tab" aria-selected="true" onclick="switchAuthTab('signin')">Sign In</button>
                 <button id="tabSignUp" class="tab" type="button" role="tab" aria-selected="false" onclick="switchAuthTab('signup')">Sign Up</button>
             </div>
+            <button id="googleAuthButton" class="btn google-auth" type="button" onclick="handleGoogleSignIn()"><i class="fa-brands fa-google"></i> Continue with Google</button>
 
             <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); handleLogin();">
                 <div class="field-group">
@@ -132,6 +133,21 @@
                     <button type="submit" class="btn primary"><i class="fa-solid fa-user-plus"></i> Create Account</button>
                 </div>
                 <p class="auth-switch-copy">Already have an account? <button type="button" onclick="switchAuthTab('signin')">Sign in</button></p>
+            </form>
+
+            <form id="googleProfileForm" class="auth-form" style="display:none;" onsubmit="event.preventDefault(); handleGoogleProfileSetup();">
+                <p class="google-profile-copy">Choose your department to finish setting up your account.</p>
+                <div class="field-group">
+                    <label for="googleProfileDept"><i class="fa-solid fa-sitemap"></i> Department</label>
+                    <select id="googleProfileDept" required>
+                        <option value="">Select department</option>
+                        <option value="oGT">oGT</option>
+                        <option value="oGV">oGV</option>
+                    </select>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn primary">Complete profile</button>
+                </div>
             </form>
 
             <div id="profileDashboard" class="profile-dashboard" style="display:none;">
