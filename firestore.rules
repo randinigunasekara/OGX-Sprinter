@@ -49,6 +49,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if isOwner(userId)
+        && request.auth.token.email_verified == true
         && request.resource.data.keys().hasOnly([
           'name', 'department', 'photoUrl', 'avatarConfig', 'createdAt'
         ])
@@ -61,9 +62,17 @@ service cloud.firestore {
         && isValidAvatar(request.resource.data.avatarConfig)
         && request.resource.data.createdAt == request.time;
       allow update: if isOwner(userId)
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['avatarConfig'])
-        && isValidAvatar(request.resource.data.avatarConfig);
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['avatarConfig'])
+            && isValidAvatar(request.resource.data.avatarConfig))
+          ||
+          (request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['emailVerified'])
+            && resource.data.emailVerified == false
+            && request.resource.data.emailVerified == true
+            && request.auth.token.email_verified == true)
+        );
       allow delete: if isAdmin();
     }
 

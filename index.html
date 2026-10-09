@@ -102,6 +102,7 @@
                     <label><i class="fa-solid fa-lock"></i> Password</label>
                     <input id="loginPassword" type="password" required placeholder="••••••••">
                 </div>
+                <p class="auth-switch-copy"><button type="button" onclick="handlePasswordReset()">Forgot password?</button></p>
                 <div class="actions">
                     <button type="submit" class="btn primary"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
                 </div>
@@ -130,6 +131,7 @@
                     </select>
                 </div>
                 <div class="actions">
+                    <button type="button" class="btn cancel" onclick="closeLoginModal()">Cancel</button>
                     <button type="submit" class="btn primary"><i class="fa-solid fa-user-plus"></i> Create Account</button>
                 </div>
                 <p class="auth-switch-copy">Already have an account? <button type="button" onclick="switchAuthTab('signin')">Sign in</button></p>

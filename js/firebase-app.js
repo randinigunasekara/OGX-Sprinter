@@ -3,6 +3,8 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -55,6 +57,7 @@ let members = [];
 let currentUser = null;
 let scoringRules = [];
 let chartInstance = null;
+let isSigningUp = false;
 
 function ensureAuthModal() {
   if (document.getElementById('authModal') || document.getElementById('loginForm')) return;
@@ -70,6 +73,7 @@ function ensureAuthModal() {
         <form id="loginForm" class="auth-form" onsubmit="event.preventDefault(); handleLogin();">
           <div class="field-group"><label for="loginEmail">Email</label><input id="loginEmail" type="email" required></div>
           <div class="field-group"><label for="loginPassword">Password</label><input id="loginPassword" type="password" required></div>
+          <p class="auth-switch-copy"><button type="button" onclick="handlePasswordReset()">Forgot password?</button></p>
           <div class="actions"><button type="submit" class="btn primary">Sign In</button></div>
         </form>
         <form id="signupForm" class="auth-form" style="display:none;" onsubmit="event.preventDefault(); handleSignUp();">
@@ -116,12 +120,36 @@ function init() {
   document.getElementById('signupCount')?.addEventListener('input', updatePointsPreview);
 
   onAuthStateChanged(firebaseAuth, async user => {
+    if (user?.providerData.some(provider => provider.providerId === 'password') && !user.emailVerified) {
+      currentUser = null;
+      if (!isSigningUp) {
+        try {
+          await signOut(firebaseAuth);
+        } catch (error) {
+          console.error('Could not sign out unverified account:', error);
+        }
+      }
+      resetAuthView();
+      return;
+    }
+
     currentUser = user;
+    if (user?.emailVerified) {
+      const profileRef = doc(firestore, 'users', user.uid);
+      const profile = await getDoc(profileRef);
+      if (profile.exists() && profile.data().emailVerified === false) {
+        try {
+          await updateDoc(profileRef, { emailVerified: true });
+        } catch (error) {
+          console.error('Could not update legacy profile verification status:', error);
+        }
+      }
+    }
     applyAuthGate();
     await Promise.all([loadMembers(), loadScoringRules()]);
     const member = members.find(item => item.id === user?.uid);
     if (user && member) showProfileView(user.uid);
-    else if (user?.providerData.some(provider => provider.providerId === 'google.com')) showGoogleProfileSetup();
+    else if (user) showProfileSetup();
     else resetAuthView();
     applyAuthGate();
     updateScoringForm();
@@ -142,7 +170,7 @@ async function loadMembers() {
       submissions.push(post);
       postGroups.set(post.userId, submissions);
     });
-    members = userSnapshot.docs.map(userDocument => {
+    members = userSnapshot.docs.filter(userDocument => userDocument.data().emailVerified !== false).map(userDocument => {
       const user = userDocument.data();
       const postSubmissions = postGroups.get(userDocument.id) || [];
       return {
@@ -230,24 +258,35 @@ async function handleSignUp() {
   const department = document.getElementById('signUpDept')?.value;
   if (!name || !email || !password || !department) return alert('Fill all fields.');
 
+  isSigningUp = true;
   try {
     const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
     await updateProfile(credential.user, { displayName: name });
-    await setDoc(doc(firestore, 'users', credential.user.uid), {
-      name,
-      department,
-      photoUrl: null,
-      avatarConfig: getSignupAvatarConfig(),
-      createdAt: serverTimestamp()
-    });
-    await loadMembers();
-    showProfileView(credential.user.uid);
-    updateScoringForm();
-    renderAll();
-    closeLoginModal();
+    try {
+      localStorage.setItem(pendingSignupProfileKey(credential.user.uid), JSON.stringify({
+        department,
+        avatarConfig: getSignupAvatarConfig()
+      }));
+    } catch (error) {
+      console.warn('Could not save pending signup profile locally:', error);
+    }
+    await sendEmailVerification(credential.user);
+    await signOut(firebaseAuth);
+    alert('Email address not verified yet. Check your inbox for the verification link. If no email arrives, confirm the address exists and is correct. You cannot sign in until it is verified.');
   } catch (error) {
     console.error('Sign-up failed:', error);
-    alert(error.message || 'Could not create the account. Check Firebase setup and try again.');
+    alert(error.code === 'auth/invalid-email'
+      ? 'Invalid email address. Check the address and try again.'
+      : error.message || 'Could not create the account. Check Firebase setup and try again.');
+    if (firebaseAuth.currentUser && !firebaseAuth.currentUser.emailVerified) {
+      try {
+        await signOut(firebaseAuth);
+      } catch (signOutError) {
+        console.error('Could not sign out unverified account:', signOutError);
+      }
+    }
+  } finally {
+    isSigningUp = false;
   }
 }
 
@@ -256,11 +295,43 @@ async function handleLogin() {
   const password = document.getElementById('loginPassword')?.value;
   if (!email || !password) return alert('Enter your email and password.');
   try {
-    await signInWithEmailAndPassword(firebaseAuth, email, password);
+    const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    if (!credential.user.emailVerified) {
+      await sendEmailVerification(credential.user);
+      await signOut(firebaseAuth);
+      return alert('Please verify your email address using the link we sent before signing in.');
+    }
     closeLoginModal();
   } catch (error) {
     console.error('Sign-in failed:', error);
-    alert(error.message || 'Could not sign in. Check your email and password.');
+    if (error.code === 'auth/invalid-email') {
+      alert('Enter a valid email address.');
+    } else if (['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(error.code)) {
+      alert('Invalid email address or password. Check your details and try again.');
+    } else {
+      alert('Could not sign in. Please try again.');
+    }
+  }
+}
+
+async function handlePasswordReset() {
+  const emailInput = document.getElementById('loginEmail');
+  const email = emailInput?.value.trim();
+  if (!email) return alert('Enter your email address first.');
+  if (!emailInput.checkValidity()) return alert('Enter a valid email address.');
+
+  try {
+    await sendPasswordResetEmail(firebaseAuth, email);
+    alert('If an account exists for that email address, a password reset link has been sent. Follow the link to choose a new password, then sign in again.');
+  } catch (error) {
+    console.error('Password reset request failed:', error);
+    if (error.code === 'auth/invalid-email') {
+      alert('Enter a valid email address.');
+    } else if (error.code === 'auth/user-not-found') {
+      alert('If an account exists for that email address, a password reset link has been sent.');
+    } else {
+      alert('Could not send the password reset email. Check your connection and try again.');
+    }
   }
 }
 
@@ -269,20 +340,23 @@ async function handleGoogleSignIn() {
     const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
     const profile = await getDoc(doc(firestore, 'users', credential.user.uid));
     if (profile.exists()) closeLoginModal();
-    else showGoogleProfileSetup();
+    else showProfileSetup();
   } catch (error) {
     console.error('Google sign-in failed:', error);
     alert(error.message || 'Could not sign in with Google. Please try again.');
   }
 }
 
-function showGoogleProfileSetup() {
+function showProfileSetup() {
   const dashboard = document.getElementById('profileDashboard');
   const tabs = document.getElementById('authTabs');
   const loginForm = document.getElementById('loginForm');
   const signupForm = document.getElementById('signupForm');
   const googleAuthButton = document.getElementById('googleAuthButton');
   const profileForm = document.getElementById('googleProfileForm');
+  const pendingProfile = currentUser ? getPendingSignupProfile(currentUser.uid) : null;
+  const departmentSelect = document.getElementById('googleProfileDept');
+  if (departmentSelect && pendingProfile?.department) departmentSelect.value = pendingProfile.department;
   if (dashboard) dashboard.style.display = 'none';
   if (tabs) tabs.style.display = 'none';
   if (loginForm) loginForm.style.display = 'none';
@@ -297,6 +371,7 @@ async function handleGoogleProfileSetup() {
   if (!currentUser || !department) return alert('Select your department to continue.');
 
   try {
+    const pendingProfile = getPendingSignupProfile(currentUser.uid);
     const profileRef = doc(firestore, 'users', currentUser.uid);
     const profile = await getDoc(profileRef);
     if (!profile.exists()) {
@@ -305,9 +380,14 @@ async function handleGoogleProfileSetup() {
         name,
         department,
         photoUrl: null,
-        avatarConfig: { ...AVATAR_DEFAULTS },
+        avatarConfig: getAvatarConfig(pendingProfile?.avatarConfig),
         createdAt: serverTimestamp()
       });
+      try {
+        localStorage.removeItem(pendingSignupProfileKey(currentUser.uid));
+      } catch (error) {
+        console.warn('Could not clear pending signup profile locally:', error);
+      }
     }
     await loadMembers();
     showProfileView(currentUser.uid);
@@ -378,6 +458,18 @@ function getAvatarConfig(config) {
     const allowedValues = AVATAR_OPTIONS[key].map(([value]) => value);
     return [key, allowedValues.includes(avatar[key]) ? avatar[key] : fallback];
   }));
+}
+
+function pendingSignupProfileKey(userId) {
+  return `campaign-sprinter-pending-profile:${userId}`;
+}
+
+function getPendingSignupProfile(userId) {
+  try {
+    return JSON.parse(localStorage.getItem(pendingSignupProfileKey(userId)) || 'null');
+  } catch {
+    return null;
+  }
 }
 
 function createGeneratedAvatar(name, config) {
@@ -766,6 +858,7 @@ window.closeLoginModal = closeLoginModal;
 window.switchAuthTab = switchAuthTab;
 window.handleSignUp = handleSignUp;
 window.handleLogin = handleLogin;
+window.handlePasswordReset = handlePasswordReset;
 window.handleGoogleSignIn = handleGoogleSignIn;
 window.handleGoogleProfileSetup = handleGoogleProfileSetup;
 window.handleLogout = handleLogout;
