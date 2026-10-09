@@ -139,7 +139,10 @@ body {
 #authModal .auth-form input:focus, #authModal .auth-form select:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(115,146,214,0.16); }
 #authModal .auth-form input:-webkit-autofill, #authModal .auth-form input:-webkit-autofill:hover, #authModal .auth-form input:-webkit-autofill:focus { -webkit-text-fill-color: var(--text-main); box-shadow: 0 0 0 1000px #101c2d inset; }
 #authModal .auth-form .actions { margin-top: 20px; }
+#authModal #signupForm .actions { display: flex; gap: 10px; }
 #authModal .auth-form .actions .btn { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; }
+#authModal .auth-form .actions .btn.cancel { border: 1px solid rgba(160,174,192,0.24); background: transparent; color: var(--text-muted); box-shadow: none; }
+#authModal .auth-form .actions .btn.cancel:hover { background: rgba(160,174,192,0.1); color: var(--text-main); }
 #authModal .auth-switch-copy { margin: 18px 0 0; color: var(--text-muted); font-size: 13px; text-align: center; }
 #authModal .auth-switch-copy button { padding: 0; border: 0; background: none; color: #a9c1f4; font: inherit; font-weight: 700; cursor: pointer; }
 #authModal .auth-switch-copy button:hover { color: white; text-decoration: underline; }
